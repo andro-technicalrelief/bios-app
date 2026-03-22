@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Flow Studio (v1)</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        textarea { width: 100%; height: 150px; }
+        #csvoutput { height: 200px; }
+        #preview { border:1px solid #ccc; height:300px; overflow:auto; }
+    </style>
+</head>
+<body>
+<h2>Flow Studio v1</h2>
+<p>Paste natural language description or load a text/PDF/DOCX file. We will turn each sentence into a step and link them sequentially. You can edit the DSL manually below.</p>
+<input type="file" id="fileinput" />
+<br/><br/>
+<textarea id="nltext" placeholder="Enter process description here..."></textarea>
+<br/>
+<button onclick="parseNL()">Parse</button>
+<button onclick="exportCSV()">Export BIOS Contract v1 (CSV)</button>
+<br/><br/>
+<div id="preview"></div>
+<textarea id="csvoutput" readonly></textarea>
+
+<script>
+function readFile(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('nltext').value = e.target.result;
+    };
+    if (file.name.endsWith('.pdf')) {
+        // simple approach: treat as binary text
+        reader.readAsText(file);
+    } else if (file.name.endsWith('.docx')) {
+        reader.readAsText(file);
+    } else {
+        reader.readAsText(file);
+    }
+}
+document.getElementById('fileinput').addEventListener('change', function(e){
+    if(e.target.files.length>0)readFile(e.target.files[0]);
+});
+
+function parseNL(){
+    const text = document.getElementById('nltext').value;
+    const sentences = text.split(/\.|\n/).map(s=>s.trim()).filter(s=>s);
+    let nodes = [];
+    for(let i=0;i<sentences.length;i++){
+        let uid = 'T'+(i+1);
+        let type='task';
+        if(i===0) type='start';
+        if(i===sentences.length-1) type='end';
+        nodes.push({uid,type,activity:sentences[i],responsibility:'human:Unknown',next:[]});
+    }
+    for(let i=0;i<nodes.length-1;i++){
+        nodes[i].next.push(nodes[i+1].uid);
+    }
+    showPreview(nodes);
+    window._lastNodes = nodes;
+}
+
+function showPreview(nodes){
+    let html='<table border="1" cellpadding="3"><tr><th>UID</th><th>Type</th><th>Activity</th><th>Next</th></tr>';
+    nodes.forEach(n=>{
+        html+='<tr><td>'+n.uid+'</td><td>'+n.type+'</td><td>'+n.activity+'</td><td>'+n.next.join(';')+'</td></tr>';
+    });
+    html+='</table>';
+    document.getElementById('preview').innerHTML=html;
+}
+
+function exportCSV(){
+    const hdr = [
+        "Outcome","Value Chain","Core Process","Sub Process","Process Owner",
+        "Step_UID","Step_Type","Activity","Owner","Responsibility","System","Metric","KPI","Report","Ref","Next_Step_UIDs"
+    ];
+    let rows=[];
+    if(!window._lastNodes){alert('parse first'); return;}
+    window._lastNodes.forEach(n=>{
+        let nxt = n.next.map(u=>u).join(';');
+        rows.push(['','','','', '', n.uid, n.type, n.activity, '', n.responsibility, '', '', '', '', '', nxt]);
+    });
+    let csv = hdr.join(',')+'\n';
+    rows.forEach(r=>{
+        csv+=r.map(v=>'"'+v.replace(/"/g,'""')+'"').join(',')+'\n';
+    });
+    document.getElementById('csvoutput').value = csv;
+    // trigger download
+    const blob = new Blob([csv],{type:'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download='bios_contract.csv';
+    a.click();
+}
+</script>
+</body>
+</html>

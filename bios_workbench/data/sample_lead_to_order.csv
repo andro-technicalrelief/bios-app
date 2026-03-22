@@ -1,0 +1,8 @@
+Outcome,Value Chain,Core Process,Sub Process,Process Owner,Step_UID,Step_Type,Activity,Owner,Responsibility,System,Metric,KPI,Report,Ref,Next_Step_UIDs
+Sales,Order to Cash,Lead to Order,Qualify Lead,Alice,S1,start,Receive lead,Bob,human:Sales Rep,CRM,Lead count,>=10 leads/day,LeadReport,,S2
+Sales,Order to Cash,Lead to Order,Qualify Lead,Alice,S2,task,Qualify lead,,human:Sales Rep,CRM,Qualification rate,>=50%,QualifyReport,,S3
+Sales,Order to Cash,Lead to Order,Qualify Lead,Alice,S3,decision,Qualified?,,human:Sales Rep,, , , , ,yes=S4;no=S5
+Sales,Order to Cash,Lead to Order,Qualify Lead,Alice,S4,task,Prepare proposal,,human:Sales Manager,ERP,Proposals prepared,>=5/day,ProposalReport,,S6
+Sales,Order to Cash,Lead to Order,Qualify Lead,Alice,S5,end,Disqualify lead,,human:Sales Manager,,,ClosedReport,,
+Sales,Order to Cash,Lead to Order,Qualify Lead,Alice,S6,task,Send proposal,,system:Email,Email,,, , ,S7
+Sales,Order to Cash,Lead to Order,Qualify Lead,Alice,S7,end,Proposal sent,,human:Sales Rep,,,,,

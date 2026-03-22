@@ -1,0 +1,166 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Draw.io Embed</title>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    .bar {
+      display: flex;
+      gap: 8px;
+      padding: 8px;
+      border-bottom: 1px solid #e5e5e5;
+      font-family: Arial, sans-serif;
+      align-items: center;
+    }
+    .bar button {
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+    .bar .status {
+      margin-left: auto;
+      font-size: 12px;
+      opacity: 0.75;
+    }
+    iframe { width: 100%; height: calc(100% - 46px); border: 0; }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <button id="btnLoad">Load Diagram</button>
+    <button id="btnExport">Download XML</button>
+    <button id="btnPng">Download PNG</button>
+    <span class="status" id="status">Starting…</span>
+  </div>
+
+  <!-- diagrams.net embedded editor -->
+  <iframe
+    id="editor"
+    src="https://embed.diagrams.net/?embed=1&ui=min&spin=1&proto=json&libraries=1"
+    sandbox="allow-scripts allow-same-origin allow-downloads allow-forms allow-popups"
+  ></iframe>
+
+  <script>
+    // Streamlit injects a JSON-escaped XML string into this placeholder
+    // Example: window.INIT_XML = "<mxfile>...</mxfile>";
+    window.INIT_XML = "__XML__";
+
+    const iframe = document.getElementById("editor");
+    const statusEl = document.getElementById("status");
+
+    let editorReady = false;
+    let pendingLoad = false;
+
+    function setStatus(msg) {
+      statusEl.textContent = msg;
+    }
+
+    function post(msg) {
+      iframe.contentWindow.postMessage(JSON.stringify(msg), "*");
+    }
+
+    // Called once the editor is ready
+    function loadDiagram() {
+      if (!editorReady) {
+        pendingLoad = true;
+        setStatus("Waiting for editor…");
+        return;
+      }
+      setStatus("Loading diagram…");
+      post({
+        action: "load",
+        xml: window.INIT_XML,
+        autosave: 0
+      });
+    }
+
+    // Ask editor for XML, then download it
+    function exportXml() {
+      if (!editorReady) { setStatus("Editor not ready."); return; }
+      setStatus("Preparing XML export…");
+      post({
+        action: "export",
+        format: "xml",
+        xml: window.INIT_XML
+      });
+    }
+
+    // Ask editor for PNG, then download it
+    function exportPng() {
+      if (!editorReady) { setStatus("Editor not ready."); return; }
+      setStatus("Preparing PNG export…");
+      post({
+        action: "export",
+        format: "png",
+        scale: 1,
+        border: 10,
+        transparent: false
+      });
+    }
+
+    // Receive messages from diagrams.net
+    window.addEventListener("message", (evt) => {
+      let data = evt.data;
+
+      // diagrams.net uses JSON strings
+      try {
+        data = JSON.parse(data);
+      } catch (e) {
+        return;
+      }
+
+      // When the editor is ready it sends an "init" event
+      if (data.event === "init") {
+        editorReady = true;
+        setStatus("Editor ready.");
+        // Auto-load once ready
+        if (pendingLoad || window.INIT_XML) {
+          pendingLoad = false;
+          loadDiagram();
+        }
+        return;
+      }
+
+      // Export results come back as base64 data in data.data
+      if (data.event === "export") {
+        try {
+          const payload = data.data; // base64
+          const format = data.format || "xml";
+          const mime = (format === "png") ? "image/png" : "application/xml";
+          const ext = (format === "png") ? "png" : "drawio.xml";
+
+          const byteChars = atob(payload);
+          const byteNumbers = new Array(byteChars.length);
+          for (let i = 0; i < byteChars.length; i++) {
+            byteNumbers[i] = byteChars.charCodeAt(i);
+          }
+          const blob = new Blob([new Uint8Array(byteNumbers)], { type: mime });
+          const url = URL.createObjectURL(blob);
+
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `bios_diagram.${ext}`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+
+          URL.revokeObjectURL(url);
+          setStatus(`Downloaded ${format.toUpperCase()}.`);
+        } catch (e) {
+          setStatus("Export failed.");
+        }
+        return;
+      }
+
+      // Optional: status events
+      if (data.event === "status") {
+        setStatus(data.message || "Working…");
+      }
+    });
+
+    document.getElementById("btnLoad").addEventListener("click", loadDiagram);
+    document.getElementById("btnExport").addEventListener("click", exportXml);
+    document.getElementById("btnPng").addEventListener("click", exportPng);
+  </script>
+</body>
+</html>

@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>BIOS Workbench</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+/* ─── Reset & Tokens ──────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f7fa;--card:#fff;--border:#e2e6ec;
+  --sidebar:#1a1d23;--sidebar-hover:#262a33;--sidebar-active:#3b82f6;
+  --text-primary:#1e293b;--text-secondary:#64748b;
+  --accent:#3b82f6;--accent-light:#dbeafe;
+  --success:#22c55e;--warning:#f59e0b;--error:#ef4444;
+  --info:#3b82f6;
+  --radius:10px;--shadow:0 1px 3px rgba(0,0,0,.08);
+  --font:'Inter',system-ui,-apple-system,sans-serif;
+}
+html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--text-primary)}
+
+/* ─── Layout ──────────────────────────────────────── */
+.app{display:flex;height:100vh}
+
+/* Sidebar */
+.sidebar{
+  width:260px;min-width:260px;background:var(--sidebar);
+  display:flex;flex-direction:column;padding:0;overflow-y:auto;
+  transition:width .3s;
+}
+.sidebar-brand{
+  padding:24px 20px 20px;font-size:18px;font-weight:700;color:#fff;
+  letter-spacing:-.3px;border-bottom:1px solid rgba(255,255,255,.08);
+}
+.sidebar-brand span{color:var(--accent);margin-right:6px}
+.sidebar-nav{flex:1;padding:12px 10px}
+.sidebar-nav .nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;border-radius:8px;color:#a1a8b8;cursor:pointer;
+  font-size:13.5px;font-weight:500;transition:.15s;margin-bottom:2px;
+  user-select:none;
+}
+.sidebar-nav .nav-item:hover{background:var(--sidebar-hover);color:#d1d5db}
+.sidebar-nav .nav-item.active{background:var(--sidebar-active);color:#fff}
+.sidebar-nav .nav-item .icon{width:18px;text-align:center;font-size:15px;opacity:.85}
+
+/* Upload section in sidebar */
+.sidebar-upload{
+  padding:16px;border-top:1px solid rgba(255,255,255,.08);
+}
+.sidebar-upload label{
+  display:block;font-size:12px;font-weight:600;color:#a1a8b8;
+  text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;
+}
+.upload-zone{
+  border:2px dashed rgba(255,255,255,.15);border-radius:8px;
+  padding:16px;text-align:center;cursor:pointer;transition:.2s;
+  color:#a1a8b8;font-size:12px;
+}
+.upload-zone:hover{border-color:var(--accent);color:var(--accent)}
+.upload-zone.dragover{border-color:var(--accent);background:rgba(59,130,246,.08)}
+.upload-zone input{display:none}
+.upload-status{margin-top:8px;font-size:11px;color:#a1a8b8}
+.upload-status.success{color:var(--success)}
+.upload-status.error{color:var(--error)}
+.file-name{
+  margin-top:6px;font-size:11px;color:var(--accent);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
+/* Main Content */
+.main{flex:1;overflow-y:auto;padding:28px 36px}
+.page-header{font-size:24px;font-weight:700;margin-bottom:20px;letter-spacing:-.4px}
+
+/* Cards */
+.card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:22px 24px;margin-bottom:18px;
+  box-shadow:var(--shadow);
+}
+.card-title{font-size:16px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card-subtitle{font-size:13px;color:var(--text-secondary);margin-bottom:12px}
+
+/* Tables */
+table.data-table{
+  width:100%;border-collapse:collapse;font-size:13px;
+}
+table.data-table th{
+  text-align:left;padding:10px 12px;font-weight:600;font-size:12px;
+  text-transform:uppercase;letter-spacing:.4px;color:var(--text-secondary);
+  background:#f8fafc;border-bottom:2px solid var(--border);
+}
+table.data-table td{
+  padding:10px 12px;border-bottom:1px solid var(--border);
+  color:var(--text-primary);vertical-align:top;
+}
+table.data-table tr:hover td{background:#f8fafc}
+
+/* Alerts / Messages */
+.msg{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.msg-error{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+.msg-warning{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+.msg-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+.msg-success{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
+
+/* Metric boxes */
+.metric-grid{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.metric-box{
+  flex:1;min-width:140px;background:linear-gradient(135deg,#f8fafc 0%,#eef2ff 100%);
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:18px 20px;text-align:center;
+}
+.metric-box .metric-value{font-size:32px;font-weight:700;color:var(--accent)}
+.metric-box .metric-label{font-size:12px;color:var(--text-secondary);margin-top:4px;font-weight:500}
+
+/* Accordion / Expander */
+.expander{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden}
+.expander-header{
+  display:flex;align-items:center;gap:8px;padding:12px 16px;cursor:pointer;
+  font-size:13.5px;font-weight:600;background:#f8fafc;
+  transition:background .15s;user-select:none;
+}
+.expander-header:hover{background:#f1f5f9}
+.expander-header .arrow{transition:transform .2s;font-size:11px}
+.expander.open .expander-header .arrow{transform:rotate(90deg)}
+.expander-body{display:none;padding:14px 16px;font-size:13px;border-top:1px solid var(--border)}
+.expander.open .expander-body{display:block}
+
+/* Divider */
+.divider{height:1px;background:var(--border);margin:20px 0}
+
+/* Radio group */
+.radio-group{display:flex;gap:0;margin-bottom:16px;border-radius:8px;overflow:hidden;border:1px solid var(--border);width:fit-content}
+.radio-group label{
+  padding:8px 18px;font-size:13px;font-weight:500;cursor:pointer;
+  background:var(--card);color:var(--text-secondary);transition:.15s;
+  border-right:1px solid var(--border);
+}
+.radio-group label:last-child{border-right:none}
+.radio-group label:hover{background:#f1f5f9}
+.radio-group input{display:none}
+.radio-group input:checked+span{color:var(--accent);font-weight:600}
+.radio-group label:has(input:checked){background:var(--accent-light)}
+
+/* Select */
+select.form-select{
+  padding:8px 14px;border-radius:8px;border:1px solid var(--border);
+  font-size:13px;font-family:var(--font);background:var(--card);
+  cursor:pointer;min-width:240px;
+}
+
+/* Diagram container */
+.diagram-wrap{
+  border:1px solid var(--border);border-radius:var(--radius);
+  overflow:hidden;background:#fff;
+}
+.diagram-wrap iframe{width:100%;height:700px;border:0}
+
+/* Placeholder */
+.placeholder{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:300px;color:var(--text-secondary);font-size:14px;text-align:center;gap:10px;
+}
+.placeholder .icon-big{font-size:48px;opacity:.35}
+
+/* Flow Studio sub-iframe */
+.flow-studio-frame{
+  border:1px solid var(--border);border-radius:var(--radius);
+  overflow:hidden;background:#fff;margin-bottom:18px;
+}
+.flow-studio-frame iframe{width:100%;height:620px;border:0}
+
+/* Narrative / markdown-like */
+.narrative{white-space:pre-wrap;line-height:1.7;font-size:14px}
+.narrative strong,.narrative b{font-weight:600}
+
+/* Spinner */
+.spinner{
+  display:inline-block;width:20px;height:20px;border:2px solid rgba(59,130,246,.2);
+  border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Hidden */
+.hidden{display:none!important}
+
+/* Steps list */
+.step-list{list-style:disc;padding-left:20px;line-height:1.8;font-size:13px;color:var(--text-primary)}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ──── Sidebar ──── -->
+  <aside class="sidebar">
+    <div class="sidebar-brand"><span>⬡</span> BIOS Workbench</div>
+    <nav class="sidebar-nav">
+      <div class="nav-item active" data-tab="flow-studio"><span class="icon">🔧</span>Flow Studio</div>
+      <div class="nav-item" data-tab="architecture"><span class="icon">🏗</span>Process Architecture</div>
+      <div class="nav-item" data-tab="people-roles"><span class="icon">👥</span>People &amp; Roles</div>
+      <div class="nav-item" data-tab="system-cat"><span class="icon">🖥</span>System Catalogues</div>
+      <div class="nav-item" data-tab="metrics"><span class="icon">📊</span>Metrics &amp; KPIs</div>
+      <div class="nav-item" data-tab="exec-summary"><span class="icon">📋</span>Executive Summary</div>
+    </nav>
+    <div class="sidebar-upload">
+      <label>Upload Contract</label>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept=".csv,.xlsx"/>
+        📁 Drop CSV / XLSX here<br/>or <u>browse</u>
+      </div>
+      <div class="upload-status" id="uploadStatus"></div>
+      <div class="file-name" id="uploadFileName"></div>
+    </div>
+  </aside>
+
+  <!-- ──── Main Content ──── -->
+  <main class="main" id="mainContent">
+    <!-- Each tab's content is rendered dynamically by JS -->
+  </main>
+
+</div>
+
+<script>
+/* ============================================================
+   BIOS Workbench – Frontend Controller
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+
+let currentTab = 'flow-studio';
+let dataLoaded = false;
+
+// ---- Navigation ----
+$$('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    $$('.nav-item').forEach(n => n.classList.remove('active'));
+    item.classList.add('active');
+    currentTab = item.dataset.tab;
+    renderTab();
+  });
+});
+
+// ---- File Upload ----
+const uploadZone = $('#uploadZone');
+const fileInput = $('#fileInput');
+const uploadStatus = $('#uploadStatus');
+const uploadFileName = $('#uploadFileName');
+
+uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) handleUpload(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files.length) handleUpload(fileInput.files[0]); });
+
+async function handleUpload(file) {
+  uploadStatus.className = 'upload-status';
+  uploadStatus.textContent = 'Uploading…';
+  uploadFileName.textContent = file.name;
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  try {
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.ok) {
+      dataLoaded = true;
+      uploadStatus.className = 'upload-status success';
+      const errors = (data.issues || []).filter(i => i.severity === 'error');
+      const warns  = (data.issues || []).filter(i => i.severity !== 'error');
+      uploadStatus.textContent = `✓ Loaded (${errors.length} errors, ${warns.length} warnings)`;
+      renderTab();
+    } else {
+      uploadStatus.className = 'upload-status error';
+      uploadStatus.textContent = '✗ ' + (data.error || 'Unknown error');
+    }
+  } catch (err) {
+    uploadStatus.className = 'upload-status error';
+    uploadStatus.textContent = '✗ Network error';
+  }
+}
+
+// ---- Tab Renderer ----
+async function renderTab() {
+  const c = $('#mainContent');
+  switch (currentTab) {
+    case 'flow-studio':    return renderFlowStudio(c);
+    case 'architecture':   return renderArchitecture(c);
+    case 'people-roles':   return renderPeopleRoles(c);
+    case 'system-cat':     return renderSystemCatalogues(c);
+    case 'metrics':        return renderMetrics(c);
+    case 'exec-summary':   return renderExecSummary(c);
+  }
+}
+
+function needsData(c) {
+  if (!dataLoaded) {
+    c.innerHTML = `<div class="placeholder"><div class="icon-big">📁</div>Please upload a BIOS Contract first<br/>(CSV or XLSX)</div>`;
+    return true;
+  }
+  return false;
+}
+
+function showLoading(c, title) {
+  c.innerHTML = `<div class="page-header">${title}</div><div style="display:flex;align-items:center;gap:10px;margin-top:20px"><div class="spinner"></div>Loading…</div>`;
+}
+
+function buildTable(rows, columns) {
+  if (!rows || rows.length === 0) return '<p style="color:var(--text-secondary);font-size:13px;padding:8px 0">No data.</p>';
+  const cols = columns || Object.keys(rows[0]);
+  let h = '<div style="overflow-x:auto"><table class="data-table"><thead><tr>';
+  cols.forEach(col => h += `<th>${esc(col)}</th>`);
+  h += '</tr></thead><tbody>';
+  rows.forEach(row => {
+    h += '<tr>';
+    cols.forEach(col => h += `<td>${esc(String(row[col] ?? ''))}</td>`);
+    h += '</tr>';
+  });
+  h += '</tbody></table></div>';
+  return h;
+}
+
+function buildMessages(issues) {
+  if (!issues || issues.length === 0) return '';
+  let h = '';
+  issues.forEach(i => {
+    const cls = i.severity === 'error' ? 'msg-error' : 'msg-warning';
+    h += `<div class="msg ${cls}">${esc(i.message || 'Issue')}</div>`;
+  });
+  return h;
+}
+
+function makeExpander(title, bodyHtml, open) {
+  return `<div class="expander${open ? ' open' : ''}">
+    <div class="expander-header" onclick="this.parentElement.classList.toggle('open')">
+      <span class="arrow">▶</span> ${esc(title)}
+    </div>
+    <div class="expander-body">${bodyHtml}</div>
+  </div>`;
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ============================================================
+// TAB: Flow Studio
+// ============================================================
+async function renderFlowStudio(c) {
+  let html = '<div class="page-header">Flow Studio</div>';
+  html += '<div class="card"><div class="card-subtitle">Create or paste your process text and export a BIOS Process Contract. Use the built-in page below or upload an existing CSV/XLSX.</div>';
+  html += '<div class="flow-studio-frame"><iframe src="/assets/flow_studio.html"></iframe></div></div>';
+
+  if (dataLoaded) {
+    html += '<div class="card"><div class="card-title">Diagram Viewer</div>';
+    html += `<div class="radio-group">
+      <label><input type="radio" name="diag-mode" value="operational" checked/><span>Operational Flow</span></label>
+      <label><input type="radio" name="diag-mode" value="architecture"/><span>Value Chain Architecture</span></label>
+    </div>`;
+    html += '<div id="diagramContainer"><div style="display:flex;align-items:center;gap:10px"><div class="spinner"></div>Loading diagram…</div></div>';
+    html += '</div>';
+  }
+  c.innerHTML = html;
+
+  if (dataLoaded) {
+    loadDiagram('operational');
+    $$('input[name="diag-mode"]').forEach(r => {
+      r.addEventListener('change', () => loadDiagram(r.value));
+    });
+  }
+}
+
+async function loadDiagram(mode) {
+  const container = $('#diagramContainer');
+  if (!container) return;
+  container.innerHTML = '<div style="display:flex;align-items:center;gap:10px"><div class="spinner"></div>Loading diagram…</div>';
+  try {
+    const res = await fetch(`/api/flow-studio/diagram?mode=${mode}`);
+    const data = await res.json();
+    if (data.ok) {
+      renderDrawio(container, data.xml);
+    } else {
+      container.innerHTML = `<div class="msg msg-error">${esc(data.error)}</div>`;
+    }
+  } catch (e) {
+    container.innerHTML = '<div class="msg msg-error">Failed to load diagram</div>';
+  }
+}
+
+function renderDrawio(container, xml) {
+  const escapedXml = JSON.stringify(xml).slice(1, -1);
+  const iframeSrc = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+<style>html,body{height:100%;margin:0}
+.bar{display:flex;gap:8px;padding:8px;border-bottom:1px solid #e5e5e5;font-family:Inter,Arial,sans-serif;align-items:center}
+.bar button{padding:6px 12px;cursor:pointer;border-radius:6px;border:1px solid #ddd;background:#fff;font-size:12px;font-family:inherit}
+.bar button:hover{background:#f1f5f9}
+.bar .status{margin-left:auto;font-size:12px;opacity:.65}
+iframe{width:100%;height:calc(100% - 46px);border:0}
+</style></head><body>
+<div class="bar">
+<button id="btnLoad">Load</button>
+<button id="btnExport">XML</button>
+<button id="btnPng">PNG</button>
+<span class="status" id="status">Starting…</span>
+</div>
+<iframe id="editor" src="https://embed.diagrams.net/?embed=1&ui=min&spin=1&proto=json&libraries=1"
+  sandbox="allow-scripts allow-same-origin allow-downloads allow-forms allow-popups"></iframe>
+<script>
+window.INIT_XML="${escapedXml}";
+var iframe=document.getElementById("editor"),statusEl=document.getElementById("status"),
+editorReady=false,pendingLoad=false;
+function setStatus(m){statusEl.textContent=m}
+function post(m){iframe.contentWindow.postMessage(JSON.stringify(m),"*")}
+function loadDiagram(){if(!editorReady){pendingLoad=true;setStatus("Waiting…");return}setStatus("Loading…");post({action:"load",xml:window.INIT_XML,autosave:0})}
+function exportXml(){if(!editorReady)return;post({action:"export",format:"xml",xml:window.INIT_XML})}
+function exportPng(){if(!editorReady)return;post({action:"export",format:"png",scale:1,border:10,transparent:false})}
+window.addEventListener("message",function(e){var d=e.data;try{d=JSON.parse(d)}catch(x){return}
+if(d.event==="init"){editorReady=true;setStatus("Ready");if(pendingLoad||window.INIT_XML){pendingLoad=false;loadDiagram()}}
+if(d.event==="export"){try{var p=d.data,f=d.format||"xml",m=f==="png"?"image/png":"application/xml",x=f==="png"?"png":"drawio.xml";
+var bc=atob(p),bn=new Array(bc.length);for(var i=0;i<bc.length;i++)bn[i]=bc.charCodeAt(i);
+var bl=new Blob([new Uint8Array(bn)],{type:m}),u=URL.createObjectURL(bl),a=document.createElement("a");
+a.href=u;a.download="bios_diagram."+x;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);setStatus("Downloaded "+f.toUpperCase())}catch(er){setStatus("Export failed")}}
+if(d.event==="status")setStatus(d.message||"Working…")});
+document.getElementById("btnLoad").addEventListener("click",loadDiagram);
+document.getElementById("btnExport").addEventListener("click",exportXml);
+document.getElementById("btnPng").addEventListener("click",exportPng);
+<\/script></body></html>`;
+
+  container.innerHTML = '<div class="diagram-wrap"><iframe id="drawioFrame"></iframe></div>';
+  const frame = container.querySelector('iframe');
+  frame.srcdoc = iframeSrc;
+}
+
+// ============================================================
+// TAB: Process Architecture
+// ============================================================
+async function renderArchitecture(c) {
+  if (needsData(c)) return;
+  showLoading(c, 'Process Architecture');
+  try {
+    const res = await fetch('/api/architecture');
+    const data = await res.json();
+    if (!data.ok) { c.innerHTML = `<div class="msg msg-error">${esc(data.error)}</div>`; return; }
+
+    let html = '<div class="page-header">Process Architecture</div>';
+
+    // Diagram
+    html += '<div class="card"><div class="card-title">Value Chain Architecture Diagram</div><div id="archDiagram"></div></div>';
+
+    // Validation
+    if (data.issues && data.issues.length) {
+      html += makeExpander('Validation Messages', buildMessages(data.issues), false);
+    }
+
+    // Loops
+    if (data.loops && data.loops.length) {
+      let loopHtml = '';
+      data.loops.forEach(l => {
+        const cls = l.type === 'controlled' ? 'msg-info' : 'msg-error';
+        const lbl = l.type === 'controlled' ? 'Controlled Loop' : 'Structural Cycle';
+        loopHtml += `<div class="msg ${cls}"><strong>${lbl}</strong> in '${esc(l.sub_process)}'</div>`;
+        loopHtml += `<p style="font-size:12px;color:var(--text-secondary);margin:0 0 8px 8px">${esc(l.node_string)}</p>`;
+      });
+      html += '<div class="card"><div class="card-title">🔁 Loop Analysis</div>' + loopHtml + '</div>';
+    }
+
+    // Complexity
+    if (data.complexity && data.complexity.length) {
+      html += '<div class="card"><div class="card-title">📐 Process Complexity</div>'
+        + buildTable(data.complexity) + '</div>';
+    }
+
+    // System Dependency
+    if (data.system_dependency && data.system_dependency.length) {
+      html += '<div class="card"><div class="card-title">🔗 System Dependency</div>'
+        + buildTable(data.system_dependency) + '</div>';
+    }
+
+    // Hierarchy
+    html += '<div class="card"><div class="card-title">📂 Process Hierarchy</div>';
+    for (const [outcome, vcs] of Object.entries(data.hierarchy || {})) {
+      let vcHtml = '';
+      for (const [vc, cps] of Object.entries(vcs)) {
+        let cpHtml = '';
+        for (const [cp, sps] of Object.entries(cps)) {
+          let spHtml = '';
+          for (const [sp, steps] of Object.entries(sps)) {
+            let stepsLi = steps.length ? '<ul class="step-list">' + steps.map(s => `<li>${esc(s)}</li>`).join('') + '</ul>' : '<p style="color:var(--text-secondary);font-size:12px">No steps found.</p>';
+            spHtml += makeExpander(`[Sub Process] ${sp}`, stepsLi, false);
+          }
+          cpHtml += makeExpander(`[Core Process] ${cp}`, spHtml, false);
+        }
+        vcHtml += makeExpander(`[Value Chain] ${vc}`, cpHtml, false);
+      }
+      html += makeExpander(`[Outcome] ${outcome}`, vcHtml, false);
+    }
+
+    // Rollups
+    html += makeExpander('Rollups', `<pre style="font-size:12px;white-space:pre-wrap;max-height:400px;overflow:auto">${esc(JSON.stringify(data.rollups, null, 2))}</pre>`, false);
+    html += '</div>';
+
+    c.innerHTML = html;
+    // Render diagram
+    renderDrawio($('#archDiagram'), data.diagram_xml);
+  } catch (e) {
+    c.innerHTML = `<div class="page-header">Process Architecture</div><div class="msg msg-error">Failed to load data</div>`;
+  }
+}
+
+// ============================================================
+// TAB: People & Roles
+// ============================================================
+let _cachedRoles = null;
+
+async function renderPeopleRoles(c) {
+  if (needsData(c)) return;
+  showLoading(c, 'People & Roles');
+
+  try {
+    // Fetch role list first
+    const rolesRes = await fetch('/api/people-roles');
+    const rolesData = await rolesRes.json();
+    if (!rolesData.ok) { c.innerHTML = `<div class="msg msg-error">${esc(rolesData.error)}</div>`; return; }
+    _cachedRoles = rolesData.roles;
+
+    let html = '<div class="page-header">People &amp; Roles</div>';
+    html += '<div class="card">';
+    html += '<label style="font-size:13px;font-weight:600;margin-right:10px">Select Role</label>';
+    html += '<select class="form-select" id="roleSelect">';
+    html += '<option value="">— Choose a role —</option>';
+    rolesData.roles.forEach(r => {
+      html += `<option value="${esc(r.key)}">${esc(r.display)}</option>`;
+    });
+    html += '</select></div>';
+    html += '<div id="roleContent"></div>';
+    c.innerHTML = html;
+
+    $('#roleSelect').addEventListener('change', async function() {
+      const key = this.value;
+      if (!key) { $('#roleContent').innerHTML = ''; return; }
+      await loadRoleDetail(key);
+    });
+
+    // Auto-select first
+    if (rolesData.roles.length) {
+      $('#roleSelect').value = rolesData.roles[0].key;
+      await loadRoleDetail(rolesData.roles[0].key);
+    }
+  } catch (e) {
+    c.innerHTML = `<div class="page-header">People &amp; Roles</div><div class="msg msg-error">Failed to load</div>`;
+  }
+}
+
+async function loadRoleDetail(roleKey) {
+  const rc = $('#roleContent');
+  if (!rc) return;
+  rc.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:20px"><div class="spinner"></div>Loading…</div>';
+
+  try {
+    const res = await fetch(`/api/people-roles?role=${encodeURIComponent(roleKey)}`);
+    const data = await res.json();
+    if (!data.ok) { rc.innerHTML = `<div class="msg msg-error">${esc(data.error)}</div>`; return; }
+
+    let html = '';
+
+    // Responsibilities
+    html += '<div class="card"><div class="card-title">📋 Responsibilities</div>' + buildTable(data.responsibilities) + '</div>';
+
+    // Decisions
+    html += '<div class="card"><div class="card-title">🔀 Decisions</div>';
+    html += data.decisions.length ? buildTable(data.decisions) : '<p style="color:var(--text-secondary);font-size:13px">No decisions for this role.</p>';
+    html += '</div>';
+
+    // Handovers
+    html += '<div class="card"><div class="card-title">🤝 Handovers</div>';
+    html += data.handovers.length ? buildTable(data.handovers) : '<p style="color:var(--text-secondary);font-size:13px">No cross-role handovers.</p>';
+    html += '</div>';
+
+    // KPIs
+    html += '<div class="card"><div class="card-title">📈 KPIs</div>';
+    html += data.kpis.length ? buildTable(data.kpis) : '<p style="color:var(--text-secondary);font-size:13px">No KPIs for this role.</p>';
+    html += '</div>';
+
+    rc.innerHTML = html;
+  } catch (e) {
+    rc.innerHTML = '<div class="msg msg-error">Failed to load role details</div>';
+  }
+}
+
+// ============================================================
+// TAB: System Catalogues
+// ============================================================
+async function renderSystemCatalogues(c) {
+  if (needsData(c)) return;
+  showLoading(c, 'System Catalogues');
+
+  try {
+    const res = await fetch('/api/system-catalogues');
+    const data = await res.json();
+    if (!data.ok) { c.innerHTML = `<div class="msg msg-error">${esc(data.error)}</div>`; return; }
+
+    let html = '<div class="page-header">System Catalogues</div>';
+    html += '<div class="card">';
+    html += '<label style="font-size:13px;font-weight:600;margin-right:10px">Select System</label>';
+    html += '<select class="form-select" id="systemSelect">';
+    html += '<option value="">— Choose a system —</option>';
+    data.systems.forEach(s => {
+      html += `<option value="${esc(s)}">${esc(s)}</option>`;
+    });
+    html += '</select></div>';
+    html += '<div id="systemContent"></div>';
+    c.innerHTML = html;
+
+    $('#systemSelect').addEventListener('change', async function() {
+      const s = this.value;
+      if (!s) { $('#systemContent').innerHTML = ''; return; }
+      await loadSystemDetail(s);
+    });
+
+    if (data.systems.length) {
+      $('#systemSelect').value = data.systems[0];
+      await loadSystemDetail(data.systems[0]);
+    }
+  } catch (e) {
+    c.innerHTML = `<div class="page-header">System Catalogues</div><div class="msg msg-error">Failed to load</div>`;
+  }
+}
+
+async function loadSystemDetail(systemName) {
+  const sc = $('#systemContent');
+  if (!sc) return;
+  sc.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:20px"><div class="spinner"></div>Loading…</div>';
+
+  try {
+    const res = await fetch(`/api/system-catalogues?system=${encodeURIComponent(systemName)}`);
+    const data = await res.json();
+    if (!data.ok) { sc.innerHTML = `<div class="msg msg-error">${esc(data.error)}</div>`; return; }
+
+    let html = '';
+
+    // Steps
+    html += '<div class="card"><div class="card-title">📋 Steps</div>' + buildTable(data.steps) + '</div>';
+
+    // Dependency
+    html += '<div class="card"><div class="card-title">🔗 System Dependency (where this system is dominant)</div>';
+    html += data.dependency.length ? buildTable(data.dependency) : '<p style="color:var(--text-secondary);font-size:13px">No subprocesses found where this system is the dominant system.</p>';
+    html += '</div>';
+
+    // Performance Indicators
+    let indHtml = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">';
+    indHtml += '<div><strong style="font-size:13px">Metrics</strong><ul style="font-size:13px;margin-top:6px;padding-left:18px">' +
+      (data.metrics.length ? data.metrics.map(m => `<li>${esc(m)}</li>`).join('') : '<li style="color:var(--text-secondary)">—</li>') + '</ul></div>';
+    indHtml += '<div><strong style="font-size:13px">KPIs</strong><ul style="font-size:13px;margin-top:6px;padding-left:18px">' +
+      (data.kpis.length ? data.kpis.map(k => `<li>${esc(k)}</li>`).join('') : '<li style="color:var(--text-secondary)">—</li>') + '</ul></div>';
+    indHtml += '<div><strong style="font-size:13px">Reports</strong><ul style="font-size:13px;margin-top:6px;padding-left:18px">' +
+      (data.reports.length ? data.reports.map(r => `<li>${esc(r)}</li>`).join('') : '<li style="color:var(--text-secondary)">—</li>') + '</ul></div>';
+    indHtml += '</div>';
+    html += makeExpander('Performance Indicators', indHtml, false);
+
+    // Roles
+    let rolesHtml = data.roles.length ? '<ul style="font-size:13px;padding-left:18px">' + data.roles.map(r => `<li>${esc(r)}</li>`).join('') + '</ul>' : '<p style="color:var(--text-secondary);font-size:13px">—</p>';
+    html += makeExpander('Roles interacting with this system', rolesHtml, false);
+
+    sc.innerHTML = html;
+  } catch (e) {
+    sc.innerHTML = '<div class="msg msg-error">Failed to load system details</div>';
+  }
+}
+
+// ============================================================
+// TAB: Metrics & KPIs
+// ============================================================
+async function renderMetrics(c) {
+  if (needsData(c)) return;
+  showLoading(c, 'Performance Catalogue');
+
+  try {
+    const res = await fetch('/api/metrics');
+    const data = await res.json();
+    if (!data.ok) { c.innerHTML = `<div class="msg msg-error">${esc(data.error)}</div>`; return; }
+
+    let html = '<div class="page-header">Performance Catalogue</div>';
+    html += '<div class="card">' + buildTable(data.rows) + '</div>';
+    c.innerHTML = html;
+  } catch (e) {
+    c.innerHTML = `<div class="page-header">Performance Catalogue</div><div class="msg msg-error">Failed to load</div>`;
+  }
+}
+
+// ============================================================
+// TAB: Executive Summary
+// ============================================================
+async function renderExecSummary(c) {
+  if (needsData(c)) return;
+  showLoading(c, 'Executive Summary');
+
+  try {
+    const res = await fetch('/api/executive-summary');
+    const data = await res.json();
+    if (!data.ok) { c.innerHTML = `<div class="msg msg-error">${esc(data.error)}</div>`; return; }
+
+    let html = '<div class="page-header">Executive Summary</div>';
+
+    // Top Risk
+    html += '<div class="card"><div class="card-title">🔺 Top Risk Sub Processes</div>' + buildTable(data.fragility) + '</div>';
+
+    // Loop Health
+    html += '<div class="card"><div class="card-title">🔁 Loop Health</div>';
+    html += '<div class="metric-grid">';
+    html += `<div class="metric-box"><div class="metric-value">${data.loop_health.total}</div><div class="metric-label">Total Loops</div></div>`;
+    html += `<div class="metric-box"><div class="metric-value">${data.loop_health.controlled}</div><div class="metric-label">Controlled Loops</div></div>`;
+    html += `<div class="metric-box"><div class="metric-value">${data.loop_health.structural}</div><div class="metric-label">Structural Loops</div></div>`;
+    html += '</div></div>';
+
+    // Narrative
+    if (data.narrative) {
+      html += '<div class="card"><div class="card-title">💡 Executive Insight</div>';
+      // Simple markdown bold rendering
+      let narr = esc(data.narrative).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      html += `<div class="narrative">${narr}</div></div>`;
+    }
+
+    c.innerHTML = html;
+  } catch (e) {
+    c.innerHTML = `<div class="page-header">Executive Summary</div><div class="msg msg-error">Failed to load</div>`;
+  }
+}
+
+// ---- Initial load ----
+renderTab();
+
+// Check if data is already loaded (e.g. page refresh)
+fetch('/api/status').then(r => r.json()).then(d => {
+  if (d.loaded) {
+    dataLoaded = true;
+    uploadStatus.className = 'upload-status success';
+    uploadStatus.textContent = '✓ Contract loaded';
+    renderTab();
+  }
+}).catch(() => {});
+</script>
+</body>
+</html>

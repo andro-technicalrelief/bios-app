@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bios-workbench"
+version = "0.1.0"
+description = "BIOS Workbench Process Platform"
+authors = [{name = "Zander Marais"}]
+dependencies = [
+    "flask",
+    "pandas",
+    "openpyxl"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["bios_workbench*"]
+

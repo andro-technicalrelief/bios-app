@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: bios-workbench
+    env: python
+    buildCommand: "pip install -r requirements.txt && pip install -e ."
+    startCommand: "gunicorn bios_workbench.ui.app:app --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: WEB_CONCURRENCY
+        value: 2
